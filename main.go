@@ -24,12 +24,13 @@ import (
 //go:embed lua/rex_rollcall.lua
 var luaModule string
 
-var version = "0.4.1"
+var version = "0.4.2"
 
 const usage = `rex-rollcall: one picker for coding-agent sessions on every Rex host
 
   rex-rollcall                     open the picker (Rex opens it from the rollcall action)
   rex-rollcall --vim               open the picker in Vim-style normal mode
+  rex-rollcall --demo              open the picker with made-up sessions, for screenshots
   rex-rollcall list                print the rows the picker would show
   rex-rollcall mcp                 serve session list, search, show and open as an MCP server on stdio
   rex-rollcall install             write ~/.config/rex/rex_rollcall.lua and add setup{} to init.lua
@@ -45,6 +46,7 @@ type Settings struct {
 	Unlock     bool   `json:"unlock"`
 	UnlockHost string `json:"unlock_host"`
 	Vim        bool   `json:"vim"`
+	Demo       bool   `json:"demo"`
 }
 
 func parseSettings(env string) (Settings, error) {
@@ -120,8 +122,18 @@ func run(args []string) error {
 		return err
 	}
 	switch cmd {
-	case "", "--vim":
-		s.Vim = s.Vim || cmd == "--vim"
+	case "", "--vim", "--demo":
+		for _, f := range append([]string{cmd}, args...) {
+			switch f {
+			case "":
+			case "--vim":
+				s.Vim = true
+			case "--demo":
+				s.Demo = true
+			default:
+				return fmt.Errorf("unknown flag %q", f)
+			}
+		}
 		return pick(ctx, s, anchorFromEnv())
 	case "list":
 		return list(ctx, s)

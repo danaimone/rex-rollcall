@@ -222,7 +222,12 @@ func pick(ctx context.Context, set Settings, a rexcli.Anchor) error {
 	}
 	defer os.Remove(snap)
 	setTitle("Rollcall")
-	s := &snapshot{gathered: gather(ctx, set), Anchor: a, Settings: set, Search: !set.Vim}
+	s := &snapshot{Anchor: a, Settings: set, Search: !set.Vim}
+	if set.Demo {
+		s.gathered = demoGathered()
+	} else {
+		s.gathered = gather(ctx, set)
+	}
 	if err := s.save(snap); err != nil {
 		return err
 	}
@@ -283,6 +288,9 @@ func pick(ctx context.Context, set Settings, a rexcli.Anchor) error {
 	r, err := s.row(idx)
 	if err != nil {
 		return err
+	}
+	if s.Settings.Demo {
+		return nil
 	}
 	if err := act(ctx, s, r, key == "ctrl-t"); err != nil {
 		return pause(err)
@@ -369,8 +377,10 @@ func internal(ctx context.Context, cmd string, args []string) error {
 				}
 			}
 		case "refresh":
-			s.gathered = gather(ctx, s.Settings)
-			s.Note = ""
+			if !s.Settings.Demo {
+				s.gathered = gather(ctx, s.Settings)
+				s.Note = ""
+			}
 		default:
 			return fmt.Errorf("_rows: unknown view %q", args[1])
 		}
@@ -424,12 +434,14 @@ func internal(ctx context.Context, cmd string, args []string) error {
 		if err != nil {
 			return err
 		}
-		switch args[2] {
-		case "copy":
+		switch {
+		case s.Settings.Demo:
+			s.Note = demoNote
+		case args[2] == "copy":
 			s.Note = copyRow(s, r)
-		case "close":
+		case args[2] == "close":
 			s.Note = closeRow(ctx, s, r, args[1])
-		case "unlock":
+		case args[2] == "unlock":
 			s.Note = unlock(ctx, s.Settings)
 		default:
 			return fmt.Errorf("_act: unknown action %q", args[2])
@@ -518,6 +530,8 @@ func preview(ctx context.Context, s *snapshot, r rows.Row) error {
 	var body []byte
 	var err error
 	switch {
+	case s.Settings.Demo:
+		body = []byte(demoPreview(r))
 	case r.Live():
 		body, err = rexcli.Capture(ctx, t, r)
 	case t.Local && r.Origin.Source == "":

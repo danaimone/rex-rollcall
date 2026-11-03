@@ -74,7 +74,7 @@ local function host_op(_, args)
   return r.stdout
 end
 
-local function open(ctx, popup)
+local function open(ctx, popup, demo)
   local from_user = ctx.origin == "key" or ctx.origin == "palette" or ctx.origin == nil
   local layout = rex.layout.block{
     flavor = "com.superlogical.terminal.shell",
@@ -93,6 +93,7 @@ local function open(ctx, popup)
           unlock = cfg.unlock ~= nil,
           unlock_host = cfg.unlock and cfg.unlock.via or "",
           vim = cfg.vim,
+          demo = demo == true,
         },
         cfg.bin,
       },
@@ -192,8 +193,8 @@ function M.setup(opts)
     title = "Agent Sessions",
     description = "Jump to a live coding agent or resume a past session",
     keywords = "claude codex opencode pi hermes wake resume rex-rollcall",
-    args = { popup = "string?" },
-    run = function(ctx, args) open(ctx, args and args.popup) end,
+    args = { popup = "string?", demo = "boolean?" },
+    run = function(ctx, args) open(ctx, args and args.popup, args and args.demo) end,
   }
   rex.action{
     name = "rollcall_op",

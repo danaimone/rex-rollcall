@@ -26,7 +26,7 @@ rex config reload
 
 `install.sh` picks the tarball for your OS (Linux or macOS) and CPU (amd64 or
 arm64), checks it against the release's `checksums.txt`, and puts
-`rex-rollcall` in `~/.local/bin`. Set `VERSION=v0.4.1` for one release or
+`rex-rollcall` in `~/.local/bin`. Set `VERSION=v0.4.2` for one release or
 `BIN_DIR=` for another folder. Make sure that folder is on your `PATH`.
 
 From source, with Go 1.26 or newer:
@@ -103,6 +103,10 @@ follows your terminal or Rex theme.
 
 The preview shows the end of the pane's screen for live rows and the last messages
 of the transcript for past rows.
+
+For screenshots and demos, `rex do rollcall demo=true` (or `rex-rollcall --demo`)
+opens the picker with made-up sessions and previews. It reads no real sessions, and
+keys that would jump, resume, close or unlock do nothing.
 
 If a key does nothing while Claude Code has focus, run `rex-rollcall doctor --keys`
 for a short repro.
