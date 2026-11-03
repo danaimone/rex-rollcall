@@ -244,7 +244,8 @@ sources on a Proxmox host:
 
 Sources never produce live rows; a service has no pane.
 
-The source binary must be the same version as yours. Rerun the setup after an upgrade.
+The source binary must speak the same protocol as yours. A release that changes the
+protocol says so in its notes; rerun the setup then.
 
 ## Agents
 

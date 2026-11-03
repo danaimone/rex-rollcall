@@ -93,3 +93,19 @@ func TestResumeFindsAgentsOnTheInteractivePath(t *testing.T) {
 		t.Fatalf("got %q, want it to contain %q", out, want)
 	}
 }
+
+func TestSourceAcceptsAnotherVersionWithTheSameProtocol(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	req := `{"protocol":1,"version":"9.9.9","op":"rows","past_limit":5}`
+	var out strings.Builder
+	if err := Serve(t.Context(), "1.0.0", strings.NewReader(req), &out, true); err != nil {
+		t.Fatalf("source refused a host on another version: %v", err)
+	}
+	if err := Serve(t.Context(), "1.0.0", strings.NewReader(req), &out, false); err == nil {
+		t.Fatal("a module on another version was accepted")
+	}
+	bad := `{"protocol":2,"version":"1.0.0","op":"rows"}`
+	if err := Serve(t.Context(), "1.0.0", strings.NewReader(bad), &out, true); err == nil {
+		t.Fatal("a source accepted another protocol")
+	}
+}

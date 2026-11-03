@@ -124,7 +124,7 @@ func Serve(ctx context.Context, version string, stdin io.Reader, stdout io.Write
 	if err := json.NewDecoder(io.LimitReader(stdin, 64<<20)).Decode(&req); err != nil {
 		return fmt.Errorf("read request: %w", err)
 	}
-	if req.Version != version {
+	if !sourceOnly && req.Version != version {
 		return fmt.Errorf("module %q does not match binary %q: rerun rex-rollcall install && rex config reload", req.Version, version)
 	}
 	if req.Protocol != Protocol {
