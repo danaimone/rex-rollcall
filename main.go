@@ -386,7 +386,7 @@ func doctor(ctx context.Context, keys bool) error {
 		fmt.Printf("module   %s ok\n", mod)
 	}
 	if out, err := exec.Command("fzf", "--version").Output(); err != nil {
-		fmt.Println("fzf      missing: install fzf 0.50 or newer")
+		fmt.Println("fzf      missing: install fzf 0.58 or newer")
 	} else {
 		fmt.Printf("fzf      %s", out)
 	}

@@ -210,7 +210,7 @@ func snapshotPath() (string, error) {
 
 func pick(ctx context.Context, set Settings, a rexcli.Anchor) error {
 	if _, err := exec.LookPath("fzf"); err != nil {
-		return errors.New("fzf not found in PATH: install fzf 0.50 or newer")
+		return errors.New("fzf not found in PATH: install fzf 0.58 or newer")
 	}
 	self, err := selfCommand()
 	if err != nil {
@@ -247,6 +247,9 @@ func pick(ctx context.Context, set Settings, a rexcli.Anchor) error {
 		"--bind", "ctrl-y:execute-silent(" + self("_act", snap) + " {2} copy)+transform-header(" + self("_rows", snap, "header") + ")",
 		"--bind", "ctrl-u:execute-silent(" + self("_act", snap) + " {2} unlock)+refresh-preview+transform-header(" + self("_rows", snap, "header") + ")",
 		"--bind", "ctrl-x:execute-silent(" + self("_act", snap) + " {2} close)+reload(" + self("_rows", snap, "same") + ")+transform-header(" + self("_rows", snap, "header") + ")",
+	}
+	if fzfAtLeast(0, 66) {
+		args = append(args, "--gutter", " ")
 	}
 	if set.Vim {
 		args = append(args,
@@ -285,6 +288,18 @@ func pick(ctx context.Context, set Settings, a rexcli.Anchor) error {
 		return pause(err)
 	}
 	return nil
+}
+
+func fzfAtLeast(major, minor int) bool {
+	out, err := exec.Command("fzf", "--version").Output()
+	if err != nil {
+		return false
+	}
+	var ma, mi int
+	if _, err := fmt.Sscanf(string(out), "%d.%d", &ma, &mi); err != nil {
+		return false
+	}
+	return ma > major || ma == major && mi >= minor
 }
 
 func setTitle(title string) {
