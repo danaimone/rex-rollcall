@@ -1,7 +1,7 @@
 #!/bin/sh
 # Install rex-rollcall from a GitHub release:
 #   curl -fsSL https://github.com/danaimone/rex-rollcall/releases/latest/download/install.sh | sh
-# Environment: VERSION=v0.4.2 (default: latest), BIN_DIR=~/.local/bin, BASE_URL=<mirror>.
+# Environment: VERSION=v0.4.3 (default: latest), BIN_DIR=~/.local/bin, BASE_URL=<mirror>.
 set -eu
 
 repo=danaimone/rex-rollcall
