@@ -1,7 +1,11 @@
 package hostop
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -55,5 +59,37 @@ func TestOnePerServerKeepsOneLabelPerServer(t *testing.T) {
 				t.Errorf("OnePerServer labels = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestResumeFindsAgentsOnTheInteractivePath(t *testing.T) {
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("needs bash")
+	}
+	home := t.TempDir()
+	bin := filepath.Join(home, "agents")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rc := "case $- in *i*) ;; *) return ;; esac\nexport PATH=\"$HOME/agents:$PATH\"\n"
+	if err := os.WriteFile(filepath.Join(home, ".bashrc"), []byte(rc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(home, ".bash_profile"), []byte(". \"$HOME/.bashrc\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bin, "fake-agent"), []byte("#!/bin/sh\necho \"resumed $1 in $(pwd)\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	argv := resumeVia(Source{}, dir, []string{"fake-agent", "ID"})
+	cmd := exec.Command(argv[0], argv[1:]...)
+	cmd.Env = []string{"HOME=" + home, "PATH=/usr/bin:/bin"}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	if want := "resumed ID in " + dir; !strings.Contains(string(out), want) {
+		t.Fatalf("got %q, want it to contain %q", out, want)
 	}
 }

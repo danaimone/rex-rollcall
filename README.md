@@ -228,8 +228,9 @@ label instead: `unlock = { via = "mac" }`. Touch ID has to finish within the
 ### Resuming and setup
 
 Resuming a source row runs the same wrap without `-n` in a new pane, for example
-`sudo -u root sh -lc 'cd "$1" && shift && exec "$@"' sh /root claude --resume ID`.
-sudo asks for your password in that pane. No password-free path runs anything
+`sudo -u root sh -c '…' sh /root claude --resume ID`. The command starts in an
+interactive login bash when the target has bash, so the agent is found on the
+PATH that the target's `.bashrc` sets. sudo asks for your password in that pane. No password-free path runs anything
 except the read-only listing and the forced-command unlock.
 
 Each target needs its own Wake index. `contrib/proxmox-sources-setup.sh` sets up both

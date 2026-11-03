@@ -500,10 +500,10 @@ func runSource(ctx context.Context, s Source, req Request) (Reply, error) {
 	return r, nil
 }
 
-const chdirExec = `cd "$1" && shift && exec "$@"`
+const chdirExec = `cd "$1" && shift && if command -v bash >/dev/null 2>&1; then exec bash -lic 'exec "$@"' bash "$@"; fi; exec "$@"`
 
 func resumeVia(s Source, dir string, resume []string) []string {
-	argv := append(Interactive(s.Wrap), "sh", "-lc", chdirExec, "sh", dir)
+	argv := append(Interactive(s.Wrap), "sh", "-c", chdirExec, "sh", dir)
 	return append(argv, resume...)
 }
 
