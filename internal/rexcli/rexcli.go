@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"unicode"
 
 	"github.com/danaimone/rex-rollcall/internal/rows"
 )
@@ -119,16 +120,26 @@ func NewSessionArgv(t Target, r rows.Row) []string {
 	return append(argv, r.Past.Launch...)
 }
 
+func SessionLabel(title, agent string) string {
+	words := strings.FieldsFunc(strings.ToLower(title), func(c rune) bool {
+		return !unicode.IsLetter(c) && !unicode.IsDigit(c)
+	})
+	if len(words) == 0 {
+		return agent
+	}
+	return strings.Join(words[:min(4, len(words))], "-")
+}
+
 func Open(ctx context.Context, t Target, a Anchor, r rows.Row, p Placement) error {
-	cwd := cwdArgs(r)
-	cmd := append([]string{"--json"}, cwd...)
+	label := SessionLabel(r.Title, r.Agent)
+	cmd := append([]string{"--json"}, cwdArgs(r)...)
 	cmd = append(append(cmd, "--"), r.Past.Launch...)
 	switch {
 	case t.Local && p == Split && a.Session != "" && a.Block != "":
-		_, err := run(ctx, append(append(t.base(), "split", "-s", a.Session, "-b", a.Block), cmd...)...)
+		_, err := run(ctx, append(append(t.base(), "split", "-s", a.Session, "-b", a.Block, "--label", label), cmd...)...)
 		return err
 	case t.Local && a.Session != "":
-		out, err := run(ctx, append(append(t.base(), "run", "-s", a.Session), cmd...)...)
+		out, err := run(ctx, append(append(t.base(), "run", "-s", a.Session, "--label", label), cmd...)...)
 		if err != nil {
 			return err
 		}
@@ -136,9 +147,14 @@ func Open(ctx context.Context, t Target, a Anchor, r rows.Row, p Placement) erro
 			WindowID string `json:"window_id"`
 		}
 		_ = json.Unmarshal(out, &res)
+		if res.WindowID != "" {
+			if _, err := run(ctx, append(t.base(), "window", "rename", "-s", a.Session, res.WindowID, label)...); err != nil {
+				return err
+			}
+		}
 		return selectSession(ctx, t, a.Client, a.Session, res.WindowID)
 	}
-	out, err := run(ctx, append(append(t.base(), "new", r.Agent), cmd...)...)
+	out, err := run(ctx, append(append(t.base(), "new", label), cmd...)...)
 	if err != nil {
 		return err
 	}
