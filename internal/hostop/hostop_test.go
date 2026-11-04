@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/danaimone/rex-rollcall/internal/wake"
 )
 
 func TestInteractiveDropsOnlySudoNonInteractiveFlag(t *testing.T) {
@@ -107,5 +109,24 @@ func TestSourceAcceptsAnotherVersionWithTheSameProtocol(t *testing.T) {
 	bad := `{"protocol":2,"version":"1.0.0","op":"rows"}`
 	if err := Serve(t.Context(), "1.0.0", strings.NewReader(bad), &out, true); err == nil {
 		t.Fatal("a source accepted another protocol")
+	}
+}
+
+func TestPastRowSkipsADirectoryTheUserCannotEnter(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root can enter any directory")
+	}
+	locked := t.TempDir()
+	if err := os.Chmod(locked, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(locked, 0o700) })
+	open := t.TempDir()
+
+	if _, ok := pastRow(wake.Session{Agent: "claude-code", NativeID: "a", Dir: locked}, "me"); ok {
+		t.Error("kept a session whose directory the user cannot enter")
+	}
+	if _, ok := pastRow(wake.Session{Agent: "claude-code", NativeID: "b", Dir: open}, "me"); !ok {
+		t.Error("dropped a session in an open directory")
 	}
 }

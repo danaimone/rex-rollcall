@@ -13,12 +13,14 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
 	"time"
 
 	"github.com/danaimone/rex-rollcall/internal/agent"
 	"github.com/danaimone/rex-rollcall/internal/guard"
 	"github.com/danaimone/rex-rollcall/internal/rows"
 	"github.com/danaimone/rex-rollcall/internal/wake"
+	"golang.org/x/sys/unix"
 )
 
 const Protocol = 1
@@ -400,7 +402,7 @@ func pastRow(s wake.Session, username string) (rows.Row, bool) {
 	if !ok {
 		return rows.Row{}, false
 	}
-	if fi, err := os.Stat(s.Dir); err != nil || !fi.IsDir() {
+	if fi, err := os.Stat(s.Dir); err != nil || !fi.IsDir() || unix.Access(s.Dir, unix.X_OK) != nil {
 		return rows.Row{}, false
 	}
 	return rows.Row{
