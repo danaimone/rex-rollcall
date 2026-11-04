@@ -26,7 +26,7 @@ rex config reload
 
 `install.sh` picks the tarball for your OS (Linux or macOS) and CPU (amd64 or
 arm64), checks it against the release's `checksums.txt`, and puts
-`rex-rollcall` in `~/.local/bin`. Set `VERSION=v0.4.4` for one release or
+`rex-rollcall` in `~/.local/bin`. Set `VERSION=v0.4.5` for one release or
 `BIN_DIR=` for another folder. Make sure that folder is on your `PATH`.
 
 From source, with Go 1.26 or newer:
