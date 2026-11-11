@@ -7,7 +7,7 @@ pick a row, and Rex jumps to the pane or resumes the session beside you.
 
 ```
 ● ✻ Fix the login redirect            pve · working · now · app
-● ◇ CAPTCHA solver comparison         mac · waiting · 4m · scraper
+● ◇ Review the billing migration      mac · waiting · 4m · billing
 · π Write primes.py                   pve · past · 27m · pi-test2
 · ☿ Morning brief                     pve/hermes · root · past · 3h · root
 ```

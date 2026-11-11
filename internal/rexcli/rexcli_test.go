@@ -5,7 +5,7 @@ import "testing"
 func TestSessionLabelUsesTheFirstWordsOfTheTitle(t *testing.T) {
 	tests := []struct{ title, agent, want string }{
 		{"Fix the login redirect after SSO", "claude", "fix-the-login-redirect"},
-		{"OC | CAPTCHA solver comparison: hcaptcha-challenger", "opencode", "oc-captcha-solver-comparison"},
+		{"OC | Review the billing migration: step-two", "opencode", "oc-review-the-billing"},
 		{"Ünïcode café notes", "pi", "ünïcode-café-notes"},
 		{"  ", "claude", "claude"},
 		{"!!!", "codex", "codex"},
