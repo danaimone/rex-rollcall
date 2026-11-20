@@ -5,6 +5,10 @@ Live rows are agent panes (Claude Code, Codex, opencode, pi, Hermes). Past rows 
 resumable sessions from [Wake](https://github.com/iAmCorey/Wake)'s index. Press a key,
 pick a row, and Rex jumps to the pane or resumes the session beside you.
 
+The list opens in the Rex command palette, on every Rex app connected to the
+server. The [terminal picker](#terminal-picker) adds previews and more keys, and
+shows the same rows like this:
+
 ```
 ● ✻ Fix the login redirect            pve · working · now · app
 ● ◇ Review the billing migration      mac · waiting · 4m · billing
@@ -16,7 +20,9 @@ Rows sort by state (waiting, error, working, idle, then past), newest first in e
 
 ## Quickstart
 
-Needs `rex`, `fzf` 0.58 or newer, and optionally Wake for past rows.
+Needs Rex 0.1.0-preview.21 or newer for the command palette list, on the server
+and in the app. Older versions open the terminal picker instead. The terminal
+picker needs `fzf` 0.58 or newer. Wake is optional, for past rows.
 
 ```sh
 curl -fsSL https://github.com/danaimone/rex-rollcall/releases/latest/download/install.sh | sh
@@ -51,19 +57,49 @@ All options go to `setup{}` in `~/.config/rex/init.lua`. Every field is optional
 ```lua
 require("rex_rollcall").setup{
   key = { "cmd+shift+a", "cmd+s>a" },   -- one key or a list
-  popup = "layer",                       -- "layer" (floating) or "split"
+  ui = "palette",                        -- "palette" (command palette) or "terminal" (fzf picker)
+  popup = "layer",                       -- terminal picker: "layer" (floating) or "split"
   bin = "/home/me/.local/bin/rex-rollcall",  -- default: where install ran from
   deadline_ms = 1000,                    -- budget for all hosts to answer
   past_limit = 200,                      -- past rows per host and source
-  vim = false,                           -- true: open in Vim-style normal mode
+  vim = false,                           -- terminal picker: open in Vim-style normal mode
   sources = {},                          -- see below
 }
 ```
 
-The popup falls back to a split if the floating layer can't open.
-`rex do rollcall popup=split` opens a split once.
+`key` binds each key to the `rollcall` action. To bind it yourself, or to give
+the terminal picker its own key, bind the action by name:
 
-## Keys
+```lua
+rex.bind("cmd+shift+a", "rollcall")
+rex.bind("cmd+shift+s", "rollcall", { ui = "terminal" })
+```
+
+## Command palette
+
+Each row shows the session title, then the agent, where it runs and its
+folder, and at the far end the state of a live pane or the age of a past
+session. Type to filter. Press return on a live row to focus its pane. Press
+return on a past row to resume it in a split beside the pane you came from
+(a new session on another host).
+
+Short past sessions (fewer than 5 messages, like one-shot probes) are not
+listed. When a host doesn't answer in time, the filter field's hint says which.
+The list can't refresh once it is open, so it waits at least 4 seconds for
+slow hosts, whatever `deadline_ms` says.
+
+The list holds at most 2,000 rows, the most a Rex prompt takes. Previews,
+resume in a new tab, copy, close, and unlock are in the terminal picker.
+
+The palette list needs a Rex app that can show prompts. When the server has
+no `rex.ui`, or no connected app is new enough, `rollcall` opens the terminal
+picker instead.
+
+## Terminal picker
+
+`ui = "terminal"` in `setup{}`, or `rex do rollcall ui=terminal` for one run,
+opens the fzf picker in a floating layer. The layer falls back to a split if
+it can't open. `rex do rollcall popup=split` opens a split once.
 
 | Key | Does |
 | --- | --- |
@@ -104,9 +140,11 @@ follows your terminal or Rex theme.
 The preview shows the end of the pane's screen for live rows and the last messages
 of the transcript for past rows.
 
-For screenshots and demos, `rex do rollcall demo=true` (or `rex-rollcall --demo`)
-opens the picker with made-up sessions and previews. It reads no real sessions, and
-keys that would jump, resume, close or unlock do nothing.
+For screenshots and demos, `rex do rollcall demo=true` lists made-up sessions in
+the command palette, and `rex do rollcall ui=terminal demo=true` (or
+`rex-rollcall --demo`) opens the terminal picker with them and with made-up
+previews. Demo mode reads no real sessions, and a pick or a key that would jump,
+resume, close or unlock does nothing.
 
 If a key does nothing while Claude Code has focus, run `rex-rollcall doctor --keys`
 for a short repro.
@@ -135,7 +173,12 @@ source side enforces that, not the MCP server.
 
 ## How it works
 
-Each Rex host answers for itself. The picker runs one
+The `rollcall` action runs `rex-rollcall` to collect the rows, shows them with
+[`rex.ui.pick`](https://www.superlogical.com/rex/docs/customize/custom-ui), and runs
+`rex-rollcall` again to open the row you chose. The terminal picker is the same
+binary in a pane, with fzf in front.
+
+Each Rex host answers for itself. `rex-rollcall` runs one
 `rex -S HOST do rollcall_op` per host from `rex hosts`, all in parallel, under one
 deadline. On the host, the `rollcall_op` action (from the Lua module) collects that
 server's panes in-process and pipes them to `rex-rollcall _op`. That process detects

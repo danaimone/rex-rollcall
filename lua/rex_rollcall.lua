@@ -5,6 +5,7 @@ local M = { version = VERSION }
 
 local cfg = {
   bin = "@BIN@",
+  ui = "palette",
   popup = "layer",
   bounds = { 0.05, 0.05, 0.9, 0.9 },
   deadline_ms = 1000,
@@ -20,6 +21,13 @@ end
 
 local function nonempty(t)
   if type(t) == "table" and next(t) ~= nil then return t end
+end
+
+local function exec(what, argv, opts)
+  local r, err = rex.exec(argv, opts)
+  if not r then error(what .. ": " .. tostring(err), 0) end
+  if not r.ok then error(what .. ": " .. (r.stderr ~= "" and r.stderr or ("exit " .. tostring(r.code))), 0) end
+  return r.stdout
 end
 
 local function collect()
@@ -65,38 +73,70 @@ local function host_op(_, args)
   if args.op == "rows" or args.op == "search" then
     args.server_id = (call("server.status", {}) or {}).host_id
   end
-  local r, err = rex.exec({ cfg.bin, "_op" }, {
+  return exec("rex-rollcall _op", { cfg.bin, "_op" }, {
     stdin = rex.json.encode(args),
     timeout = math.min(25, args.deadline_ms / 1000 + 2),
   })
-  if not r then error("rex-rollcall: " .. tostring(err), 0) end
-  if not r.ok then error("rex-rollcall _op: " .. (r.stderr ~= "" and r.stderr or ("exit " .. tostring(r.code))), 0) end
-  return r.stdout
 end
 
-local function open(ctx, popup, demo)
+local function picker_env(ctx, demo)
   local from_user = ctx.origin == "key" or ctx.origin == "palette" or ctx.origin == nil
+  return {
+    REX_ROLLCALL_ANCHOR = rex.json.encode{
+      session = ctx.session_id or "",
+      block = ctx.block_id or "",
+      client = from_user and ctx.client_id or "",
+    },
+    REX_ROLLCALL_SETTINGS = rex.json.encode{
+      deadline_ms = cfg.deadline_ms,
+      past_limit = cfg.past_limit,
+      unlock = cfg.unlock ~= nil,
+      unlock_host = cfg.unlock and cfg.unlock.via or "",
+      vim = cfg.vim,
+      demo = demo == true,
+    },
+  }
+end
+
+local function this_server()
+  for _, l in ipairs((call("server.status", {}) or {}).listeners or {}) do
+    if l.primary then return l.endpoint end
+  end
+end
+
+local function pick_in_palette(ctx, demo)
+  local env = picker_env(ctx, demo)
+  env.REX_SERVER = this_server()
+  local list, err = rex.json.decode(exec("rex-rollcall _palette list", { cfg.bin, "_palette", "list" }, {
+    env = env,
+    timeout = cfg.deadline_ms / 1000 + 5,
+  }))
+  if not list then error("rex-rollcall _palette list: " .. tostring(err), 0) end
+  local id, why, detail = rex.ui.pick{
+    title = "Agent Sessions",
+    placeholder = list.placeholder,
+    items = list.items,
+  }
+  if id == nil then return why, detail end
+  if demo then return end
+  exec("rex-rollcall _palette open", { cfg.bin, "_palette", "open" }, {
+    env = env,
+    stdin = list.choices[id],
+    timeout = 20,
+  })
+end
+
+local function open_terminal(ctx, popup, demo)
+  local command = { "/usr/bin/env" }
+  for name, value in pairs(picker_env(ctx, demo)) do
+    command[#command + 1] = name .. "=" .. value
+  end
+  command[#command + 1] = cfg.bin
   local layout = rex.layout.block{
     flavor = "com.superlogical.terminal.shell",
     label = "Rollcall",
     options = {
-      command = {
-        "/usr/bin/env",
-        "REX_ROLLCALL_ANCHOR=" .. rex.json.encode{
-          session = ctx.session_id or "",
-          block = ctx.block_id or "",
-          client = from_user and ctx.client_id or "",
-        },
-        "REX_ROLLCALL_SETTINGS=" .. rex.json.encode{
-          deadline_ms = cfg.deadline_ms,
-          past_limit = cfg.past_limit,
-          unlock = cfg.unlock ~= nil,
-          unlock_host = cfg.unlock and cfg.unlock.via or "",
-          vim = cfg.vim,
-          demo = demo == true,
-        },
-        cfg.bin,
-      },
+      command = command,
       exit = { on_completion = true, quick_exit_threshold_ms = 0 },
     },
   }
@@ -116,6 +156,18 @@ local function open(ctx, popup, demo)
   if err ~= nil then error(err, 0) end
 end
 
+local function open(ctx, args)
+  local ui = args.ui or (args.popup and "terminal") or cfg.ui
+  if ui ~= "palette" and ui ~= "terminal" then error('rollcall: ui must be "palette" or "terminal"', 0) end
+  if ui == "palette" and rex.ui and rex.ui.pick then
+    local why, detail = pick_in_palette(ctx, args.demo)
+    if why == nil or why == "cancelled" or why == "timeout" then return end
+    if why ~= "unsupported" then error("rollcall: " .. why .. (detail and (": " .. detail) or ""), 0) end
+    rex.log("warn", "rollcall: no connected Rex app can show prompts; opening the terminal picker")
+  end
+  open_terminal(ctx, args.popup, args.demo)
+end
+
 local function expand(path)
   if path:sub(1, 2) == "~/" then return os.getenv("HOME") .. path:sub(2) end
   return path
@@ -131,10 +183,7 @@ local function unlock_over_ssh()
   for _, a in ipairs({ "-i", expand(u.identity_file), "-l", u.user or "root", u.host }) do
     argv[#argv + 1] = a
   end
-  local r, err = rex.exec(argv, { timeout = 25 })
-  if not r then error("rollcall_unlock: " .. tostring(err), 0) end
-  if not r.ok then error("rollcall_unlock: " .. (r.stderr ~= "" and r.stderr or ("exit " .. tostring(r.code))), 0) end
-  return r.stdout
+  return exec("rollcall_unlock", argv, { timeout = 25 })
 end
 
 local function check(cond, msg)
@@ -155,6 +204,7 @@ function M.setup(opts)
   local keys = opts.key or {}
   if type(keys) == "string" then keys = { keys } end
   check(type(keys) == "table", "key must be a string or a list of strings")
+  check(opts.ui == nil or opts.ui == "palette" or opts.ui == "terminal", 'ui must be "palette" or "terminal"')
   check(opts.popup == nil or opts.popup == "layer" or opts.popup == "split", 'popup must be "layer" or "split"')
   check(opts.bin == nil or type(opts.bin) == "string", "bin must be a string")
   check(opts.vim == nil or type(opts.vim) == "boolean", "vim must be true or false")
@@ -183,7 +233,7 @@ function M.setup(opts)
   end
   cfg.unlock = u
 
-  for _, n in ipairs({ "bin", "popup", "bounds", "deadline_ms", "past_limit", "vim" }) do
+  for _, n in ipairs({ "bin", "ui", "popup", "bounds", "deadline_ms", "past_limit", "vim" }) do
     if opts[n] ~= nil then cfg[n] = opts[n] end
   end
   cfg.sources = sources
@@ -193,8 +243,8 @@ function M.setup(opts)
     title = "Agent Sessions",
     description = "Jump to a live coding agent or resume a past session",
     keywords = "claude codex opencode pi hermes wake resume rex-rollcall",
-    args = { popup = "string?", demo = "boolean?" },
-    run = function(ctx, args) open(ctx, args and args.popup, args and args.demo) end,
+    args = { ui = "string?", popup = "string?", demo = "boolean?" },
+    run = open,
   }
   rex.action{
     name = "rollcall_op",
@@ -214,10 +264,7 @@ function M.setup(opts)
   end
   for _, k in ipairs(keys) do
     check(type(k) == "string", "key must be a string or a list of strings")
-    rex.bind(k, function(ctx)
-      open(ctx)
-      return true
-    end)
+    rex.bind(k, "rollcall")
   end
   return M
 end

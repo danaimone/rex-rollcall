@@ -28,9 +28,9 @@ var version = "0.4.5"
 
 const usage = `rex-rollcall: one picker for coding-agent sessions on every Rex host
 
-  rex-rollcall                     open the picker (Rex opens it from the rollcall action)
-  rex-rollcall --vim               open the picker in Vim-style normal mode
-  rex-rollcall --demo              open the picker with made-up sessions, for screenshots
+  rex-rollcall                     open the terminal picker (the rollcall action opens it with ui = "terminal")
+  rex-rollcall --vim               open the terminal picker in Vim-style normal mode
+  rex-rollcall --demo              open the terminal picker with made-up sessions, for screenshots
   rex-rollcall list                print the rows the picker would show
   rex-rollcall mcp                 serve session list, search, show and open as an MCP server on stdio
   rex-rollcall install             write ~/.config/rex/rex_rollcall.lua and add setup{} to init.lua
@@ -137,6 +137,11 @@ func run(args []string) error {
 		return pick(ctx, s, anchorFromEnv())
 	case "list":
 		return list(ctx, s)
+	case "_palette":
+		if len(args) != 1 {
+			return errors.New("_palette: want list or open")
+		}
+		return paletteCommand(ctx, args[0], s, anchorFromEnv(), os.Stdin, os.Stdout)
 	case "mcp":
 		return serveMCP(ctx, s, os.Stdin, os.Stdout)
 	}
@@ -401,7 +406,7 @@ func doctor(ctx context.Context, keys bool) error {
 		fmt.Printf("module   %s ok\n", mod)
 	}
 	if out, err := exec.Command("fzf", "--version").Output(); err != nil {
-		fmt.Println("fzf      missing: install fzf 0.58 or newer")
+		fmt.Println("fzf      missing: the terminal picker needs fzf 0.58 or newer (the command palette picker does not)")
 	} else {
 		fmt.Printf("fzf      %s", out)
 	}

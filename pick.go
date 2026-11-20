@@ -167,8 +167,8 @@ func (s *snapshot) modeActions() string {
 	return "rebind(" + normalKeys + ")+change-prompt(" + s.prompt() + ")"
 }
 
-func (s *snapshot) target(r rows.Row) rexcli.Target {
-	return rexcli.Target{Host: r.Origin.Host, Local: r.Origin.Host == s.Local, AppClient: s.Clients[r.Origin.Host]}
+func (g gathered) target(r rows.Row) rexcli.Target {
+	return rexcli.Target{Host: r.Origin.Host, Local: r.Origin.Host == g.Local, AppClient: g.Clients[r.Origin.Host]}
 }
 
 func (s *snapshot) row(arg string) (rows.Row, error) {
@@ -292,7 +292,7 @@ func pick(ctx context.Context, set Settings, a rexcli.Anchor) error {
 	if s.Settings.Demo {
 		return nil
 	}
-	if err := act(ctx, s, r, key == "ctrl-t"); err != nil {
+	if err := act(ctx, s.target(r), s.Anchor, r, key == "ctrl-t"); err != nil {
 		return pause(err)
 	}
 	return nil
@@ -325,18 +325,17 @@ func selfCommand() (func(args ...string) string, error) {
 	return func(args ...string) string { return rexcli.Quote(append([]string{bin}, args...)) }, nil
 }
 
-func act(ctx context.Context, s *snapshot, r rows.Row, newTab bool) error {
+func act(ctx context.Context, t rexcli.Target, a rexcli.Anchor, r rows.Row, newTab bool) error {
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	t := s.target(r)
 	if r.Live() {
-		return rexcli.Jump(ctx, t, s.Anchor, r)
+		return rexcli.Jump(ctx, t, a, r)
 	}
 	p := rexcli.Split
 	if newTab {
 		p = rexcli.Tab
 	}
-	return rexcli.Open(ctx, t, s.Anchor, r, p)
+	return rexcli.Open(ctx, t, a, r, p)
 }
 
 func pause(err error) error {

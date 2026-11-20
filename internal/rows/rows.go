@@ -185,7 +185,7 @@ func NewLayout(rs []Row, self string, width int) Layout {
 	}
 	l.ShowHost = len(hosts) > 1
 	for _, r := range rs {
-		l.WhoWidth = max(l.WhoWidth, min(whoMax, termtext.Width(l.who(r))))
+		l.WhoWidth = max(l.WhoWidth, min(whoMax, termtext.Width(l.Who(r))))
 		l.DirWidth = max(l.DirWidth, min(dirMax, termtext.Width(dirName(r.Dir))))
 	}
 	if l.titleRoom() < titleMin {
@@ -215,7 +215,7 @@ func (l Layout) metaWidth() int {
 
 func (l Layout) titleRoom() int { return l.Width - lead - gapW - l.metaWidth() }
 
-func (l Layout) who(r Row) string {
+func (l Layout) Who(r Row) string {
 	var parts []string
 	if l.ShowHost {
 		parts = append(parts, r.Origin.Host)
@@ -266,11 +266,11 @@ func Render(r Row, now time.Time, look Look, l Layout) string {
 		meta = append(meta, termtext.Pad(termtext.Truncate(dirName(r.Dir), l.DirWidth), l.DirWidth))
 	}
 	if l.WhoWidth > 0 {
-		meta = append(meta, termtext.Pad(termtext.Truncate(l.who(r), l.WhoWidth), l.WhoWidth))
+		meta = append(meta, termtext.Pad(termtext.Truncate(l.Who(r), l.WhoWidth), l.WhoWidth))
 	}
 	tail := strings.TrimRight(strings.Join(meta, strings.Repeat(" ", gapW)), " ")
 	room := l.titleRoom()
-	title := oneLine(r.Title)
+	title := OneLine(r.Title)
 	if room < 1 {
 		return fmt.Sprintf("%s %s %s", dot, glyph, styleTitle(r, termtext.Truncate(title, max(1, l.Width-lead))))
 	}
@@ -286,7 +286,7 @@ func styleTitle(r Row, title string) string {
 	return title
 }
 
-func oneLine(s string) string {
+func OneLine(s string) string {
 	s = strings.Map(func(r rune) rune {
 		if r == '\t' || r == '\n' || r == '\r' || r < 0x20 || r == 0x7f {
 			return ' '
