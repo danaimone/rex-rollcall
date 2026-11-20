@@ -24,7 +24,7 @@ import (
 //go:embed lua/rex_rollcall.lua
 var luaModule string
 
-var version = "0.4.5"
+var version = "0.5.0"
 
 const usage = `rex-rollcall: one picker for coding-agent sessions on every Rex host
 
