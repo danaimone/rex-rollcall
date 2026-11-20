@@ -48,7 +48,12 @@ func run(ctx context.Context, argv ...string) ([]byte, error) {
 	return out, nil
 }
 
-func Hosts(ctx context.Context) ([]string, error) {
+type Host struct {
+	Label     string
+	Endpoints string
+}
+
+func Hosts(ctx context.Context) ([]Host, error) {
 	out, err := run(ctx, append(Target{Local: true}.base(), "hosts", "list", "--json")...)
 	if err != nil {
 		return nil, err
@@ -56,20 +61,21 @@ func Hosts(ctx context.Context) ([]string, error) {
 	var v struct {
 		Hosts []struct {
 			Host struct {
-				Label string `json:"label"`
+				Label     string   `json:"label"`
+				Endpoints []string `json:"endpoints"`
 			} `json:"host"`
 		} `json:"hosts"`
 	}
 	if err := json.Unmarshal(out, &v); err != nil {
 		return nil, fmt.Errorf("rex hosts list: %w", err)
 	}
-	var labels []string
+	var hosts []Host
 	for _, h := range v.Hosts {
 		if h.Host.Label != "" {
-			labels = append(labels, h.Host.Label)
+			hosts = append(hosts, Host{Label: h.Host.Label, Endpoints: strings.Join(h.Host.Endpoints, " ")})
 		}
 	}
-	return labels, nil
+	return hosts, nil
 }
 
 func selectSession(ctx context.Context, t Target, client, session, window string) error {

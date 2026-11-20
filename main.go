@@ -216,14 +216,17 @@ func askHosts(ctx context.Context, local, only string, deadlineMS int, req hosto
 		targets = append(targets, target{"", local})
 	}
 	if only != local {
-		labels, err := rexcli.Hosts(ctx)
+		hosts, err := rexcli.Hosts(ctx)
 		if err != nil {
 			warns = append(warns, err.Error())
 		}
-		for _, l := range labels {
-			if l != local && (only == "" || l == only) {
-				targets = append(targets, target{l, l})
+		asked := map[string]bool{}
+		for _, h := range hosts {
+			if h.Label == local || (only != "" && h.Label != only) || asked[h.Endpoints] {
+				continue
 			}
+			asked[h.Endpoints] = h.Endpoints != ""
+			targets = append(targets, target{h.Label, h.Label})
 		}
 		if only != "" && len(targets) == 0 {
 			return nil, append(warns, fmt.Sprintf("no Rex host labeled %q", only))
